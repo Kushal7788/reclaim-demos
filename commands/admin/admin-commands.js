@@ -57,6 +57,28 @@ const adminCommands = async (bot) => {
         }
     });
 
+    bot.onText(/\/invite-link/, async (msg, match) => {
+        try {
+            const chatId = msg.chat.id;
+            const userId = msg.from.id;
+
+            if (msg.from.is_bot) {
+                await sendEphemeral(bot, chatId, 'Bots are not allowed to use this command.');
+                return;
+            }
+
+            const isAdmin = await checkAdmin(bot, chatId, userId);
+            if (!isAdmin) {
+                await sendEphemeral(bot, chatId, 'Only admins can use this command.');
+                return;
+            }
+
+            const inviteLink = `${process.env.CLIENT_URL}/join/${chatId}`;
+            await sendEphemeral(bot, chatId, inviteLink);
+
+
+        }
+
     // bot.onText(/\/get-link/, async (msg, match) => {
     //     try {
     //         console.log('get-link');

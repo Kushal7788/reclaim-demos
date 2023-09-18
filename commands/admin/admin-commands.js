@@ -77,7 +77,10 @@ const adminCommands = async (bot) => {
             await sendEphemeral(bot, chatId, inviteLink);
 
 
+        } catch (error) {
+            console.error('An error occurred:', error);
         }
+    });
 
     // bot.onText(/\/get-link/, async (msg, match) => {
     //     try {

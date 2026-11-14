@@ -7,6 +7,7 @@ Each folder is a self-contained app that was imported from its original repo wit
 | Demo | Folder | What it shows | Stack | Built |
 |---|---|---|---|---|
 | Gatekeeper for Discord | [`gatekeeper-discord`](gatekeeper-discord) | A Discord bot that grants server roles only after members prove a claim, using QR-code proof requests and admin/user commands | discord.js, Express, MongoDB, Reclaim SDK | Aug 2023 |
+| Gatekeeper for Telegram | [`gatekeeper-telegram`](gatekeeper-telegram) | The Telegram counterpart: a bot that admits or removes group members based on the proofs they submit | Node.js, MongoDB, Reclaim SDK | Sep 2023 |
 | ScamCheck bot setup | [`scamcheck-bot-landing`](scamcheck-bot-landing) | Landing page and setup flow for adding proof-gated bots to Discord and Telegram groups | React, Tailwind, Express | Sep 2023 |
 | Network State ID | [`network-state-id`](network-state-id) | Issues and checks identity claims backed by Reclaim proofs | React, Express, MongoDB | Sep 2023 |
 | Loan application | [`loan-app`](loan-app) | Loan KYC that collects identity data as proofs instead of uploaded documents | React, Express, MongoDB | Jul–Aug 2023 |
@@ -23,6 +24,7 @@ These demos use the 2023 Reclaim SDKs (`@reclaimprotocol/reclaim-sdk` v4 and ear
 | Folder | Imported from |
 |---|---|
 | `gatekeeper-discord` | `gatekeeper-discord` |
+| `gatekeeper-telegram` | `gatekeeper-telegram` (previously private) |
 | `scamcheck-bot-landing` | `bots-landing-page` |
 | `network-state-id` | `Reclaim-NSID` |
 | `loan-app` | `reclaim-loanapp` |

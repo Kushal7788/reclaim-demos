@@ -1,8 +1,18 @@
-# Reclaim Protocol demos (2023)
+# Reclaim Protocol demos and integrations
 
-Demo apps I built in 2023 while working with [Reclaim Protocol](https://www.reclaimprotocol.org/). Each one uses zkTLS proofs of web data in place of document uploads, manual checks or trust-me claims.
+Apps, SDK examples and integrations I built while working with [Reclaim Protocol](https://www.reclaimprotocol.org/). Each one uses zkTLS proofs of web data in place of document uploads, manual checks or trust-me claims.
 
-Each folder is a self-contained app that was imported from its original repo with commit history kept.
+Folders imported from standalone repos keep their full commit history. The MOSIP contributions are kept as diffs against the upstream projects, each with a write-up.
+
+## Integrations (2024–2025)
+
+| Project | Folder | What it shows | Stack | Built |
+|---|---|---|---|---|
+| Inji Wallet: Reclaim issuer | [`mosip-contributions/inji-wallet-reclaim-issuer`](mosip-contributions/inji-wallet-reclaim-issuer) | Adds Reclaim as a credential issuer in MOSIP's Inji Wallet, so a zkTLS proof becomes a verifiable credential in a digital-identity wallet | React Native, XState, Reclaim RN SDK | Mar 2025 |
+| vc-verifier: ISO 8601 dates | [`mosip-contributions/vc-verifier-iso8601-dates`](mosip-contributions/vc-verifier-iso8601-dates) | Microsecond-precision timestamp support in MOSIP's verifiable-credential verifier | Kotlin | Mar 2025 |
+| SDK backend demo | [`sdk-backend-demo`](sdk-backend-demo) | Minimal server side of a Reclaim integration: creates proof requests with the app secret kept server-side, and receives proofs on a callback | Node.js, Express, Reclaim JS SDK 2.x | Nov–Dec 2024 |
+
+## Demo apps (2023)
 
 | Demo | Folder | What it shows | Stack | Built |
 |---|---|---|---|---|
@@ -15,14 +25,15 @@ Each folder is a self-contained app that was imported from its original repo wit
 | Employment verification | [`employment-verification`](employment-verification) | Prove where you work through your company email provider (built with Questbook) | React, Express | Jul 2023 |
 | KaggleCoin | [`kagglecoin`](kagglecoin) | A React Native wallet linked to a Kaggle profile proved with Reclaim | React Native, ethers, Reclaim RN SDK | Oct 2023 |
 
-## Note
+The 2023 demos use the Reclaim SDKs of that time (`@reclaimprotocol/reclaim-sdk` v4 and early `reclaim-react` / `reclaim-react-native`). For a current minimal integration, start with [`sdk-backend-demo`](sdk-backend-demo).
 
-These demos use the 2023 Reclaim SDKs (`@reclaimprotocol/reclaim-sdk` v4 and early `reclaim-react` / `reclaim-react-native`), whose APIs have changed since. They're kept as a record of the use cases explored, not as current integration examples. For an up-to-date minimal integration, see [reclaim-sdk-backend-demo](https://github.com/Kushal7788/reclaim-sdk-backend-demo).
+## Where each folder came from
 
-## Original repos
-
-| Folder | Imported from |
+| Folder | Originally |
 |---|---|
+| `sdk-backend-demo` | `reclaim-sdk-backend-demo` repo (history kept) |
+| `mosip-contributions/inji-wallet-reclaim-issuer` | `reclaim-issuer-integration` branch of my `inji-wallet` fork (diff) |
+| `mosip-contributions/vc-verifier-iso8601-dates` | `develop` branch of my `vc-verifier` fork (diff) |
 | `gatekeeper-discord` | `gatekeeper-discord` |
 | `gatekeeper-telegram` | `gatekeeper-telegram` (previously private) |
 | `scamcheck-bot-landing` | `bots-landing-page` |

@@ -1,0 +1,564 @@
+diff --git a/.talismanrc b/.talismanrc
+index 23d775646d..a3ad8eedbb 100644
+--- a/.talismanrc
++++ b/.talismanrc
+@@ -238,7 +238,7 @@ fileignoreconfig:
+   - filename: __mocks__/en.mock.json
+     checksum: b34340a3f40c691f06698f7758b8c068a09ed7215098a0d11baed191c0972e04
+   - filename: ios/Inji/Info.plist
+-    checksum: 9237e54ac8bbc0a4ad4c5d82ffe5b1ae4ccadfce6745f59cee1260c469212701
++    checksum: 9e313b05f9cfa32f2b68e45a9c71734f1acde6cfb854021d2232def881f10b65
+   - filename: machines/backupAndRestore/backupRestore.ts
+     checksum: 60a55a1d0ef6e79f7b9fa1e61ed31b933364afb429bff03cebbc56339c764499
+   - filename: machines/backupAndRestore/backupRestore.typegen.ts
+@@ -272,7 +272,7 @@ fileignoreconfig:
+   - filename: injitest/automation_trigger.sh
+     checksum: f2f34839c99cb1b871dde17aed8508a071345d22738796e005ff709d2dab8644
+   - filename: machines/Issuers/IssuersService.ts
+-    checksum: e3832dff27687abc28609d2b281e570b4b0017995b7cfb56627a6b96949c469a
++    checksum: 4dc4acd05942354c6489ca50a28d973c4ba86b74cc2dbd39c6b26573423d3b2d
+   - filename: screens/Home/ViewVcModal.tsx
+     checksum: cfb25d562185488432b76287c4ef93359c1c64d8e29f5755d4c0a726c1485442
+   - filename: injitest/src/main/resources/TestData.json
+@@ -396,4 +396,6 @@ fileignoreconfig:
+     checksum: 9f29c9b0b91eba7fd7f5f4d1f78f9b6f96ef2c850c1346d712058a438d01036a
+   - filename: assets/InjiHomeLogo.svg
+     checksum: 6600a3d75033af4d702dd8c9663e12ad7c2c096a529bac2771bb856cc75a5ed0
++  - filename: shared/reclaim/ReclaimUtils.ts
++    checksum: edc6dd1932d96148c16e458877e272cf38c250cad46b5b4073934489d85f219c
+     version: ""
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index 4b70dcb921..51e15cfa25 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -67,19 +67,28 @@
+             android:screenOrientation="portrait"
+             android:windowSoftInputMode="adjustResize">
+ 
++            <intent-filter>
++                <action android:name="android.intent.action.MAIN" />
++                <category android:name="android.intent.category.LAUNCHER" />
++            </intent-filter>
++
++            <!-- Dedicated filter for Reclaim callbacks -->
+             <intent-filter>
+                 <action android:name="android.intent.action.VIEW" />
+                 <category android:name="android.intent.category.DEFAULT" />
+                 <category android:name="android.intent.category.BROWSABLE" />
+-
+-                <data
+-                    android:host="wla-auth"
+-                    android:scheme="io.mosip.residentapp.inji" />
++                <data 
++                    android:scheme="mosipreclaim" 
++                    android:host="callback" />
+             </intent-filter>
+-
++            
+             <intent-filter>
+-                <action android:name="android.intent.action.MAIN" />
+-                <category android:name="android.intent.category.LAUNCHER" />
++                <action android:name="android.intent.action.VIEW" />
++                <category android:name="android.intent.category.DEFAULT" />
++                <category android:name="android.intent.category.BROWSABLE" />
++                <data 
++                    android:scheme="io.mosip.residentapp.inji" 
++                    android:host="wla-auth" />
+             </intent-filter>
+         </activity>
+         <activity android:name="com.facebook.react.devsupport.DevSettingsActivity" />
+diff --git a/ios/Inji/Info.plist b/ios/Inji/Info.plist
+index c92d84608a..d76a1c2739 100644
+--- a/ios/Inji/Info.plist
++++ b/ios/Inji/Info.plist
+@@ -43,7 +43,11 @@
+ 			<key>CFBundleURLSchemes</key>
+ 			<array>
+ 				<string>io.mosip.residentapp</string>
++				<string>mosipreclaim</string>
++				<string>io.mosip.residentapp.inji</string>
+ 			</array>
++			<key>CFBundleURLName</key>
++			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+ 		</dict>
+ 	</array>
+ 	<key>CFBundleVersion</key>
+diff --git a/machines/Issuers/IssuersActions.ts b/machines/Issuers/IssuersActions.ts
+index d3752aa685..1b15d4fc61 100644
+--- a/machines/Issuers/IssuersActions.ts
++++ b/machines/Issuers/IssuersActions.ts
+@@ -355,5 +355,24 @@ export const IssuersActions = (model: any) => {
+         to: context => context.serviceRefs.vcMeta,
+       },
+     ),
++
++    handleReclaimError: (context: any, event: any) => {
++      console.error('Reclaim verification failed:', event.data);
++      // Check if it's a timeout error
++      if (event.data?.message?.includes('RECLAIM_TIMEOUT')) {
++        // Special handling for timeout errors
++        context.errorMessage =
++          'Reclaim verification timed out. Please try again.';
++      } else {
++        context.errorMessage = `Reclaim verification failed: ${
++          event.data?.message || 'Unknown error'
++        }`;
++      }
++    },
++
++    setReclaimTimeoutError: model.assign({
++      errorMessage: () =>
++        'Reclaim verification timed out after 5 minutes. Please try again.',
++    }),
+   };
+ };
+diff --git a/machines/Issuers/IssuersEvents.ts b/machines/Issuers/IssuersEvents.ts
+index 3aa94d77f3..47174bd3c9 100644
+--- a/machines/Issuers/IssuersEvents.ts
++++ b/machines/Issuers/IssuersEvents.ts
+@@ -13,4 +13,5 @@ export const IssuersEvents = {
+   STORE_ERROR: (error: Error, requester?: string) => ({error, requester}),
+   RESET_VERIFY_ERROR: () => ({}),
+   SELECTED_CREDENTIAL_TYPE: (credType: CredentialTypes) => ({credType}),
++  RECLAIM_TIMEOUT: () => ({}),
+ };
+diff --git a/machines/Issuers/IssuersGuards.ts b/machines/Issuers/IssuersGuards.ts
+index 2cc8771b7a..65841ca8fc 100644
+--- a/machines/Issuers/IssuersGuards.ts
++++ b/machines/Issuers/IssuersGuards.ts
+@@ -3,10 +3,11 @@ import {ErrorMessage, OIDCErrors} from '../../shared/openId4VCI/Utils';
+ import {isHardwareKeystoreExists} from '../../shared/cryptoutil/cryptoUtil';
+ import {BiometricCancellationError} from '../../shared/error/BiometricCancellationError';
+ import {VerificationErrorType} from '../../shared/vcjs/verifyCredential';
++import {isReclaimIssuer} from '../../shared/reclaim/ReclaimUtils';
+ 
+ export const IssuersGuards = () => {
+   return {
+-    isVerificationPendingBecauseOfNetworkIssue: (_context, event) =>
++    isVerificationPendingBecauseOfNetworkIssue: (_context: any, event: any) =>
+       (event.data as Error).message == VerificationErrorType.NETWORK_ERROR,
+     isSignedIn: (_: any, event: any) =>
+       (event.data as isSignedInResult).isSignedIn,
+@@ -57,5 +58,14 @@ export const IssuersGuards = () => {
+       const errorMessage = event.data.message;
+       return errorMessage === ErrorMessage.GENERIC;
+     },
++    isReclaimError: (context: any, event: any) => {
++      return (
++        isReclaimIssuer(context.selectedIssuerId) &&
++        event.data?.message?.includes('reclaim')
++      );
++    },
++    isReclaimIssuer: (context: any) => {
++      return isReclaimIssuer(context.selectedIssuerId);
++    },
+   };
+ };
+diff --git a/machines/Issuers/IssuersMachine.ts b/machines/Issuers/IssuersMachine.ts
+index e46f7ce34d..e82ecde1b3 100644
+--- a/machines/Issuers/IssuersMachine.ts
++++ b/machines/Issuers/IssuersMachine.ts
+@@ -212,11 +212,23 @@ export const IssuersMachine = model.createMachine(
+           'invokes the issuers authorization endpoint and gets the access token',
+         invoke: {
+           src: 'invokeAuthorization',
+-          onDone: {
+-            actions: ['setTokenResponse', 'setLoadingReasonAsSettingUp'],
+-            target: '.setSelectedKey',
+-          },
++          onDone: [
++            {
++              cond: 'isReclaimIssuer',
++              actions: ['setTokenResponse', 'setLoadingReasonAsSettingUp'],
++              target: 'downloadCredentials',
++            },
++            {
++              actions: ['setTokenResponse', 'setLoadingReasonAsSettingUp'],
++              target: '.setSelectedKey',
++            },
++          ],
+           onError: [
++            {
++              cond: 'isReclaimError',
++              actions: ['handleReclaimError', 'resetLoadingReason'],
++              target: 'error',
++            },
+             {
+               cond: 'isOIDCflowCancelled',
+               actions: [
+@@ -381,8 +393,14 @@ export const IssuersMachine = model.createMachine(
+           },
+           onError: [
+             {
+-              cond: 'hasUserCancelledBiometric',
+-              target: '.userCancelledBiometric',
++              cond: 'isReclaimError',
++              actions: [
++                'handleReclaimError',
++                'setReclaimTimeoutError',
++                'resetLoadingReason',
++                'sendDownloadingFailedToVcMeta',
++              ],
++              target: 'error',
+             },
+             {
+               cond: 'isGenericError',
+diff --git a/machines/Issuers/IssuersService.ts b/machines/Issuers/IssuersService.ts
+index cd890b3948..91b5d35b60 100644
+--- a/machines/Issuers/IssuersService.ts
++++ b/machines/Issuers/IssuersService.ts
+@@ -29,6 +29,10 @@ import {TelemetryConstants} from '../../shared/telemetry/TelemetryConstants';
+ import {VciClient} from '../../shared/vciClient/VciClient';
+ import {isMockVC} from '../../shared/Utils';
+ import {VCFormat} from '../../shared/VCFormat';
++import {
++  isReclaimIssuer,
++  handleReclaimFlow,
++} from '../../shared/reclaim/ReclaimUtils';
+ 
+ export const IssuersService = () => {
+   return {
+@@ -87,6 +91,26 @@ export const IssuersService = () => {
+       return authorizationServerMetadata['authorization_endpoint'];
+     },
+     downloadCredential: async (context: any) => {
++      if (isReclaimIssuer(context.selectedIssuerId)) {
++        try {
++          // Wait for the Reclaim flow to complete (with timeout handling)
++          const selectedCredentialType = context.selectedCredentialType.id;
++          const credential = await handleReclaimFlow(selectedCredentialType);
++
++          // Process the credential in the same way as for other issuers
++          return await updateCredentialInformation(context, credential);
++        } catch (error: any) {
++          if (error.message?.includes('RECLAIM_TIMEOUT')) {
++            // Special handling for timeout errors
++            throw new Error(
++              'Reclaim verification timed out. Please try again.',
++            );
++          }
++          throw error;
++        }
++      }
++
++      // Original implementation for non-Reclaim issuers
+       const downloadTimeout = await vcDownloadTimeout();
+       const accessToken: string = context.tokenResponse?.accessToken;
+       const proofJWT = await constructProofJWT(
+@@ -106,7 +130,6 @@ export const IssuersService = () => {
+         accessToken,
+       );
+ 
+-      console.info(`VC download via ${context.selectedIssuerId} is successful`);
+       return await updateCredentialInformation(context, credential);
+     },
+     invokeAuthorization: async (context: any) => {
+@@ -117,6 +140,12 @@ export const IssuersService = () => {
+             TelemetryConstants.Screens.webViewPage,
+         ),
+       );
++
++      if (isReclaimIssuer(context.selectedIssuerId)) {
++        return context;
++      }
++
++      // Default flow for other issuers
+       return await authorize(
+         constructAuthorizationConfiguration(
+           context.selectedIssuer,
+@@ -134,16 +163,19 @@ export const IssuersService = () => {
+     },
+ 
+     generateKeyPair: async (context: any) => {
+-      const keypair = await generateKeyPair(context.keyType);
+-      return keypair;
++      return await generateKeyPair(context.keyType);
+     },
+ 
+     getKeyPair: async (context: any) => {
+-      if (context.keyType === '') {
+-        throw new Error('key type not found');
+-      } else if (!!(await hasKeyPair(context.keyType))) {
+-        return await fetchKeyPair(context.keyType);
++      if (isReclaimIssuer(context.selectedIssuerId)) {
++        return {
++          publicKey: 'reclaim-public-key',
++          privateKey: 'reclaim-private-key',
++        };
+       }
++
++      // Original implementation for non-Reclaim issuers
++      return await fetchKeyPair(context.keyType);
+     },
+ 
+     getSelectedKey: async (context: any) => {
+diff --git a/package.json b/package.json
+index 616a26a23c..f0f2f0e424 100644
+--- a/package.json
++++ b/package.json
+@@ -32,6 +32,7 @@
+     "@react-navigation/bottom-tabs": "^6.0.7",
+     "@react-navigation/native": "^6.0.8",
+     "@react-navigation/native-stack": "^6.1.0",
++    "@reclaimprotocol/reactnative-sdk": "^2.2.0",
+     "@robinbobin/react-native-google-drive-api-wrapper": "^1.2.4",
+     "@xstate/react": "^3.0.1",
+     "asn1.js": "^5.4.1",
+diff --git a/shared/reclaim/ReclaimUtils.ts b/shared/reclaim/ReclaimUtils.ts
+new file mode 100644
+index 0000000000..838a02ece0
+--- /dev/null
++++ b/shared/reclaim/ReclaimUtils.ts
+@@ -0,0 +1,252 @@
++import {Linking} from 'react-native';
++
++// Import the Reclaim SDK (adjust the import path as needed)
++import {
++  ReclaimProofRequest,
++  Proof,
++  ProviderClaimData,
++} from '@reclaimprotocol/reactnative-sdk';
++
++// Check if an issuer is a Reclaim Protocol issuer
++export const isReclaimIssuer = (issuerId: string): boolean => {
++  return issuerId.toLowerCase() === 'reclaimprotocol';
++};
++
++const RECLAIM_CONFIG_URL = 'https://inji.reclaimprotocol.org/config/inji';
++const RECLAIM_SESSION_URL = 'https://api.reclaimprotocol.org/api/sdk/session';
++const RECLAIM_CREDENTIAL_URL = 'https://vc.reclaimprotocol.org/credential';
++
++// Initialize the Reclaim proof request
++export const initializeReclaimProofRequest = async (credentialType: string) => {
++  try {
++    // make an api call to get config
++    const response = await fetch(RECLAIM_CONFIG_URL, {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++      },
++      body: JSON.stringify({selectedCredentialType: credentialType}),
++    });
++
++    if (!response.ok) {
++      throw new Error('Failed to fetch config');
++    }
++
++    const {reclaimProofRequestConfig} = await response.json();
++    const reclaimProofRequest = await ReclaimProofRequest.fromJsonString(
++      reclaimProofRequestConfig,
++    );
++
++    return reclaimProofRequest;
++  } catch (error) {
++    console.error('Error initializing Reclaim proof request:', error);
++    throw error;
++  }
++};
++
++// Generate a request URL for the Reclaim proof request
++export const generateReclaimRequestUrl = async (
++  reclaimProofRequest: any,
++): Promise<{url: string; sessionId: string}> => {
++  try {
++    const jsonString = reclaimProofRequest.toJsonString();
++    const jsonObject = JSON.parse(jsonString);
++    const sessionId = jsonObject.sessionId;
++
++    const url = await reclaimProofRequest.getRequestUrl();
++    return {url, sessionId};
++  } catch (error) {
++    console.error('[Reclaim] Error generating Reclaim request URL:', error);
++    throw error;
++  }
++};
++
++// Parse the deeplink URL to extract the session ID
++export const parseReclaimDeepLinkURL = (url: string) => {
++  try {
++    // Check if this is a reclaim-callback deep link
++    if (url.includes('mosipreclaim://callback')) {
++      // Parse the query parameters
++      const urlObj = new URL(url);
++      const searchParams = new URLSearchParams(urlObj.search);
++      const sessionId = searchParams.get('sessionId');
++
++      if (sessionId) {
++        return {
++          sessionId,
++          fullUrl: url,
++        };
++      }
++
++      // Fallback to manual parsing if URL class fails
++      const parts = url.split('?');
++      if (parts.length >= 2) {
++        const queryString = parts[1];
++        const params = new URLSearchParams(queryString);
++        const sessionId = params.get('sessionId');
++
++        if (sessionId) {
++          return {
++            sessionId,
++            fullUrl: url,
++          };
++        }
++      }
++    }
++
++    return null;
++  } catch (error) {
++    console.error('[Reclaim] Error parsing deep link URL:', error);
++    return null;
++  }
++};
++
++// Wait for deeplink with timeout
++export const waitForReclaimDeeplink = (
++  sessionId: string,
++  timeoutMinutes = 5,
++): Promise<string> => {
++  return new Promise((resolve, reject) => {
++    let linkingSubscription: any = null;
++    let timeoutId: NodeJS.Timeout;
++
++    // Set timeout (5 minutes by default)
++    timeoutId = setTimeout(() => {
++      if (linkingSubscription) {
++        linkingSubscription.remove();
++      }
++      reject(
++        new Error(
++          'RECLAIM_TIMEOUT: Timed out waiting for Reclaim verification',
++        ),
++      );
++    }, timeoutMinutes * 60 * 1000);
++
++    // Function to clean up listeners
++    const cleanup = () => {
++      if (timeoutId) clearTimeout(timeoutId);
++      if (linkingSubscription) linkingSubscription.remove();
++    };
++
++    // Process a URL to check if it matches our expected deeplink
++    const processUrl = (url: string | null) => {
++      if (!url) return false;
++
++      // Parse the URL to check if it's a Reclaim deeplink
++      const parsedData = parseReclaimDeepLinkURL(url);
++      if (parsedData && parsedData.sessionId === sessionId) {
++        cleanup();
++        resolve(sessionId);
++        return true;
++      }
++
++      return false;
++    };
++
++    // Handle initial URL (app might have been opened via deep link)
++    Linking.getInitialURL().then(url => {
++      processUrl(url);
++    });
++
++    // Listen for deep links when app is already running
++    linkingSubscription = Linking.addEventListener('url', ({url}) => {
++      processUrl(url);
++    });
++  });
++};
++
++// Fetch proof data using the session ID
++export const fetchProofData = async (sessionId: string): Promise<Proof[]> => {
++  try {
++    const response = await fetch(`${RECLAIM_SESSION_URL}/${sessionId}`);
++    const data = await response.json();
++    if (response.ok) {
++      if (data.session.proofs.length > 0) {
++        return data.session.proofs;
++      } else {
++        throw new Error('Failed to fetch proof data');
++      }
++    } else {
++      throw new Error('Failed to fetch proof data');
++    }
++  } catch (error) {
++    console.error('Error fetching proof data:', error);
++    throw error;
++  }
++};
++
++// Call a backend service to convert Reclaim proof to OpenID4VC format
++const convertReclaimProofToCredential = async (
++  proofs: Proof[],
++  selectedCredential: string,
++): Promise<any> => {
++  try {
++    // POST request to the Reclaim credential endpoint
++    const stringifiedProofs = JSON.stringify({
++      proofs: proofs,
++      selectedCredentialType: selectedCredential,
++    });
++    const apiKey = 'test-reclaim-token';
++    const response = await fetch(RECLAIM_CREDENTIAL_URL, {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        Authorization: `Bearer ${apiKey}`,
++      },
++      body: stringifiedProofs,
++    });
++
++    if (!response.ok) {
++      throw new Error('Failed to convert Reclaim proof to credential');
++    }
++
++    const data = await response.json();
++    return data;
++  } catch (error) {
++    console.error('Error converting Reclaim proof to credential:', error);
++    throw error;
++  }
++};
++
++// Main function to handle the entire Reclaim flow with timeout
++export const handleReclaimFlow = async (
++  selectedCredential: string,
++): Promise<any> => {
++  try {
++    // Initialize Reclaim
++    const reclaimProofRequest = await initializeReclaimProofRequest(
++      selectedCredential,
++    );
++
++    // Generate request URL and get sessionId
++    const {url: requestUrl, sessionId} = await generateReclaimRequestUrl(
++      reclaimProofRequest,
++    );
++
++    // Open the URL in the browser
++    await Linking.openURL(requestUrl);
++
++    // Wait for the deeplink callback (with 5-minute timeout)
++    await waitForReclaimDeeplink(sessionId);
++
++    // Now that we have confirmation via deeplink, fetch the proof data
++    const proofData = await fetchProofData(sessionId);
++
++    // Convert the proof to a verifiable credential format
++    const credential = await convertReclaimProofToCredential(
++      proofData,
++      selectedCredential,
++    );
++
++    return credential;
++  } catch (error) {
++    console.error('[Reclaim] Error in Reclaim flow:', error);
++    // Rethrow with a specific prefix to identify timeout errors
++    if (error.message?.includes('RECLAIM_TIMEOUT')) {
++      throw new Error(
++        'RECLAIM_TIMEOUT: Verification process timed out. Please try again.',
++      );
++    }
++    throw error;
++  }
++};

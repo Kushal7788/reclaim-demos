@@ -1,4 +1,4 @@
-# reclaim-sdk-backend-demo
+# Reclaim SDK backend demo
 
 A minimal Express backend showing the server side of a [Reclaim Protocol](https://www.reclaimprotocol.org/) integration: it creates a proof request without exposing the app secret to the browser, and it receives the zkTLS proof the user's device sends back.
 
@@ -43,8 +43,8 @@ sequenceDiagram
 ## Getting started
 
 ```bash
-git clone https://github.com/Kushal7788/reclaim-sdk-backend-demo.git
-cd reclaim-sdk-backend-demo
+git clone https://github.com/Kushal7788/reclaim-demos.git
+cd reclaim-demos/sdk-backend-demo
 npm install
 echo "APP_SECRET=<your Reclaim app secret>" > .env
 npm start                      # http://localhost:3002
@@ -59,7 +59,7 @@ On the frontend, the returned config can be loaded with `ReclaimProofRequest.fro
 ## Project structure
 
 ```
-reclaim-sdk-backend-demo/
+sdk-backend-demo/
 ├── src/
 │   └── server.js   # Express app: config generation and proof callback
 └── package.json    # @reclaimprotocol/js-sdk, express, cors, dotenv, winston
@@ -71,4 +71,4 @@ reclaim-sdk-backend-demo/
 - **Keep `APP_SECRET` server-side.** The secret is read from `.env` and never returned to the client. That separation is the main thing this demo shows.
 - This demo targets `@reclaimprotocol/js-sdk` 2.x. Check the [Reclaim docs](https://docs.reclaimprotocol.org/) for the current API.
 
-For more Reclaim use cases, see [reclaim-demos](https://github.com/Kushal7788/reclaim-demos): eight demo apps covering proof-gated bots, KYC-free lending and employment verification.
+For more Reclaim use cases, see the [other demos and integrations in this repo](../): proof-gated bots, KYC-free lending, employment verification and a Reclaim issuer for MOSIP's Inji Wallet.

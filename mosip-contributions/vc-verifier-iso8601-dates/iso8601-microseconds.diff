@@ -1,0 +1,12 @@
+diff --git a/vc-verifier/kotlin/vcverifier/src/main/java/io/mosip/vercred/vcverifier/utils/DateUtils.kt b/vc-verifier/kotlin/vcverifier/src/main/java/io/mosip/vercred/vcverifier/utils/DateUtils.kt
+index 86cd1b99..ad2a1692 100644
+--- a/vc-verifier/kotlin/vcverifier/src/main/java/io/mosip/vercred/vcverifier/utils/DateUtils.kt
++++ b/vc-verifier/kotlin/vcverifier/src/main/java/io/mosip/vercred/vcverifier/utils/DateUtils.kt
+@@ -28,6 +28,7 @@ object DateUtils {
+     private val logger = Logger.getLogger(DateUtils::class.java.name)
+ 
+     val dateFormats = listOf(
++        ("yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'"),
+         ("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"),
+         ("yyyy-MM-dd'T'HH:mm:ss'Z'")
+     )
